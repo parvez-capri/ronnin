@@ -1,0 +1,135 @@
+basePath: /
+definitions:
+  github_com_parvez-capri_ronnin_internal_models.ErrorResponse:
+    properties:
+      details:
+        example: Field 'url' is required
+        type: string
+      error:
+        example: Invalid request body
+        type: string
+    type: object
+  github_com_parvez-capri_ronnin_internal_models.HealthResponse:
+    properties:
+      services:
+        additionalProperties:
+          type: string
+        type: object
+      status:
+        example: ok
+        type: string
+      timestamp:
+        example: 1647123456
+        type: integer
+    type: object
+  github_com_parvez-capri_ronnin_internal_models.TicketRequest:
+    properties:
+      imageS3URL:
+        example: https://bucket.s3.amazonaws.com/screenshot.png
+        type: string
+      payload:
+        additionalProperties: true
+        type: object
+      requestHeaders:
+        additionalProperties:
+          type: string
+        type: object
+      response:
+        additionalProperties: true
+        type: object
+      url:
+        example: https://example.com/api/endpoint
+        type: string
+    required:
+    - imageS3URL
+    - payload
+    - requestHeaders
+    - response
+    - url
+    type: object
+  github_com_parvez-capri_ronnin_internal_models.TicketResponse:
+    properties:
+      assignedTo:
+        example: john.doe@company.com
+        type: string
+      jiraLink:
+        example: https://your-jira.atlassian.net/browse/PROJECT-123
+        type: string
+      status:
+        example: created
+        type: string
+      ticketId:
+        example: PROJECT-123
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API Server for Ronnin application
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Ronnin API
+  version: "1.0"
+paths:
+  /create-ticket:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new JIRA ticket with the provided information
+      parameters:
+      - description: Ticket creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_parvez-capri_ronnin_internal_models.TicketRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_parvez-capri_ronnin_internal_models.TicketResponse'
+        "400":
+          description: Invalid request body or validation failed
+          schema:
+            $ref: '#/definitions/github_com_parvez-capri_ronnin_internal_models.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/github_com_parvez-capri_ronnin_internal_models.ErrorResponse'
+      summary: Create a new ticket
+      tags:
+      - tickets
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Get the status of server and its dependencies
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_parvez-capri_ronnin_internal_models.HealthResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/github_com_parvez-capri_ronnin_internal_models.ErrorResponse'
+      summary: Health check endpoint
+      tags:
+      - health
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
+x-extension-openapi:
+  example: value on a json format
