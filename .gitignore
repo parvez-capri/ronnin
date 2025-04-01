@@ -19,3 +19,6 @@ bin/
 go.work
 
 .env
+
+# Add these lines to your .gitignore
+tmp/
