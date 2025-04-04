@@ -29,8 +29,8 @@ func NewReportHandler(js *services.JiraService, s3s *services.S3Service, log *za
 }
 
 // ReportIssue godoc
-// @Summary      Report an issue
-// @Description  Creates a JIRA ticket for a reported issue with screenshots and network calls
+// @Summary      Report an issue with screenshot upload
+// @Description  Creates a JIRA ticket for a reported issue with screenshots (uploaded to S3 with 7-day presigned URL) and network calls data. All data is persisted to MongoDB.
 // @Tags         reports
 // @Accept       multipart/form-data
 // @Produce      json
@@ -39,11 +39,12 @@ func NewReportHandler(js *services.JiraService, s3s *services.S3Service, log *za
 // @Param        userEmail formData string false "User email"
 // @Param        leadId formData string false "Lead ID"
 // @Param        product formData string false "Product name"
-// @Param        failedNetworkCalls formData string false "Failed network calls JSON"
-// @Param        image0 formData file false "Screenshot"
-// @Success      201  {object}  models.TicketResponse
-// @Failure      400  {object}  models.ErrorResponse
-// @Failure      500  {object}  models.ErrorResponse
+// @Param        pageUrl formData string false "Page URL where the issue occurred"
+// @Param        failedNetworkCalls formData string false "Failed network calls JSON string"
+// @Param        image0 formData file false "Screenshot image (will be uploaded to S3 with 7-day presigned URL)"
+// @Success      201  {object}  models.TicketResponse "Ticket created successfully with ticket ID, status, assigned user, and Jira link"
+// @Failure      400  {object}  models.ErrorResponse "Invalid request body or validation error"
+// @Failure      500  {object}  models.ErrorResponse "Failed to create ticket or internal server error"
 // @Router       /report-issue [post]
 func (h *ReportHandler) ReportIssue(c *gin.Context) {
 	var req models.ReportIssueRequest

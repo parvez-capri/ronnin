@@ -30,14 +30,14 @@ func NewTicketHandler(js *services.JiraService, log *zap.Logger, validate *valid
 
 // CreateTicketGin godoc
 // @Summary      Create a new ticket
-// @Description  Creates a new JIRA ticket with the provided information
+// @Description  Creates a new JIRA ticket with the provided information and persists ticket data to MongoDB
 // @Tags         tickets
 // @Accept       json
 // @Produce      json
-// @Param        request body     models.TicketRequest true "Ticket creation request"
-// @Success      201  {object}  models.TicketResponse
+// @Param        request body     models.TicketRequest true "Ticket creation request with URL, payload, response, and request headers"
+// @Success      201  {object}  models.TicketResponse "Ticket created successfully with ticket ID, status, assigned user, and Jira link"
 // @Failure      400  {object}  models.ErrorResponse "Invalid request body or validation failed"
-// @Failure      500  {object}  models.ErrorResponse "Internal server error"
+// @Failure      500  {object}  models.ErrorResponse "Internal server error or failed to create ticket"
 // @Router       /create-ticket [post]
 func (h *TicketHandler) CreateTicketGin(c *gin.Context) {
 	var req models.TicketRequest
@@ -75,12 +75,12 @@ func (h *TicketHandler) CreateTicketGin(c *gin.Context) {
 
 // GetAllTicketsGin handles GET requests to retrieve all tickets
 // @Summary      Get All Tickets
-// @Description  Retrieves all tickets from the database
+// @Description  Retrieves all tickets from the MongoDB database with full ticket data
 // @Tags         tickets
 // @Accept       json
 // @Produce      json
 // @Success      200  {array}   services.FlattenedTicket
-// @Failure      500  {object}  models.ErrorResponse
+// @Failure      500  {object}  models.ErrorResponse "Database unavailable or error retrieving tickets"
 // @Router       /tickets [get]
 func (h *TicketHandler) GetAllTicketsGin(c *gin.Context) {
 	if h.jiraService.GetMongoService() == nil {
@@ -106,14 +106,14 @@ func (h *TicketHandler) GetAllTicketsGin(c *gin.Context) {
 
 // GetTicketByIDGin handles GET requests to retrieve a ticket by ID
 // @Summary      Get Ticket by ID
-// @Description  Retrieves a ticket by its Jira ID
+// @Description  Retrieves a single ticket by its Jira ID from MongoDB with complete ticket details
 // @Tags         tickets
 // @Accept       json
 // @Produce      json
-// @Param        id  path      string  true  "Ticket ID"
+// @Param        id  path      string  true  "Jira Ticket ID (e.g. PROJ-123)"
 // @Success      200  {object}  services.FlattenedTicket
-// @Failure      404  {object}  models.ErrorResponse
-// @Failure      500  {object}  models.ErrorResponse
+// @Failure      404  {object}  models.ErrorResponse "Ticket not found"
+// @Failure      500  {object}  models.ErrorResponse "Database unavailable or error retrieving ticket"
 // @Router       /tickets/{id} [get]
 func (h *TicketHandler) GetTicketByIDGin(c *gin.Context) {
 	id := c.Param("id")

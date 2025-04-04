@@ -38,7 +38,7 @@ var (
 
 // @title           Ronnin API
 // @version         1.0
-// @description     API Server for Ronnin application
+// @description     API Server for issue reporting with Jira integration, MongoDB persistence, and S3 file uploads
 // @termsOfService  http://swagger.io/terms/
 
 // @contact.name   Your Organization Name
@@ -50,6 +50,15 @@ var (
 
 // @host      localhost:8080
 // @BasePath  /
+
+// @tag.name        tickets
+// @tag.description Ticket viewing endpoints - for accessing stored reports
+
+// @tag.name        reports
+// @tag.description Issue reporting with file uploads
+
+// @tag.name        health
+// @tag.description Health check and monitoring endpoints
 
 // @securityDefinitions.apikey ApiKeyAuth
 // @in header
@@ -177,7 +186,6 @@ func main() {
 	// Routes
 	r.GET("/health", handlers.HealthCheckGin)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	r.POST("/create-ticket", ticketHandler.CreateTicketGin)
 	r.POST("/report-issue", reportHandler.ReportIssue)
 
 	// MongoDB routes
