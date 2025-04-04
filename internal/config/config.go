@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Config represents the application configuration
 type Config struct {
 	Port               int      `mapstructure:"PORT" validate:"required,min=1024,max=65535"`
 	Environment        string   `mapstructure:"ENV" validate:"required,oneof=development staging production"`
@@ -19,6 +20,19 @@ type Config struct {
 	JiraAPIToken       string   `mapstructure:"JIRA_API_TOKEN" validate:"required"`
 	JiraProjectKey     string   `mapstructure:"JIRA_PROJECT_KEY" validate:"required"`
 	SupportTeamMembers []string `mapstructure:"SUPPORT_TEAM_MEMBERS" validate:"required,dive,min=1"`
+	DefaultPriority    string   `mapstructure:"DEFAULT_PRIORITY" validate:"oneof=Highest High Medium Low Lowest"`
+
+	// S3 Configuration
+	AWSS3AccessKey  string `mapstructure:"AWS_S3_ACCESS_KEY"`
+	AWSS3SecretKey  string `mapstructure:"AWS_S3_SECRET_KEY"`
+	AWSS3Region     string `mapstructure:"AWS_S3_REGION" validate:"required_with=AWSS3AccessKey"`
+	AWSS3BucketName string `mapstructure:"AWS_S3_BUCKET_NAME" validate:"required_with=AWSS3AccessKey"`
+	AWSS3BaseURL    string `mapstructure:"AWS_S3_BASE_URL"`
+
+	// MongoDB Configuration
+	MongoURI        string `mapstructure:"MONGO_URI"`
+	MongoDB         string `mapstructure:"MONGO_DB"`
+	MongoCollection string `mapstructure:"MONGO_COLLECTION"`
 }
 
 func Load() (*Config, error) {
@@ -27,6 +41,12 @@ func Load() (*Config, error) {
 	viper.SetDefault("ENV", "development")
 	viper.SetDefault("LOG_LEVEL", "info")
 	viper.SetDefault("CORS_ALLOWED_ORIGINS", []string{"http://localhost:8080"})
+	viper.SetDefault("ENVIRONMENT", "development")
+
+	// Default MongoDB values for local development
+	viper.SetDefault("MONGO_URI", "mongodb://localhost:27017")
+	viper.SetDefault("MONGO_DB", "ronnin")
+	viper.SetDefault("MONGO_COLLECTION", "tickets")
 
 	// Configure viper
 	viper.SetConfigFile(".env")

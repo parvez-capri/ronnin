@@ -6,7 +6,7 @@ type TicketRequest struct {
 	Payload        map[string]interface{} `json:"payload" binding:"required"`
 	Response       map[string]interface{} `json:"response" binding:"required"`
 	RequestHeaders map[string]string      `json:"requestHeaders" binding:"required"`
-	ImageS3URL     string                 `json:"imageS3URL" binding:"required" example:"https://bucket.s3.amazonaws.com/screenshot.png"`
+	ImageS3URL     string                 `json:"imageS3URL" example:"https://bucket.s3.amazonaws.com/screenshot.png"`
 }
 
 // TicketResponse represents the response after creating a ticket

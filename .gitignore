@@ -22,3 +22,5 @@ go.work
 
 # Add these lines to your .gitignore
 tmp/
+
+*.log

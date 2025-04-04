@@ -102,6 +102,38 @@ func main() {
 	// Initialize validator
 	validate := validator.New()
 
+	// Initialize MongoDB service if configured
+	var mongoService *services.MongoDBService
+	if cfg.MongoURI != "" {
+		log.Info("Initializing MongoDB service",
+			zap.String("uri", cfg.MongoURI),
+			zap.String("database", cfg.MongoDB),
+			zap.String("collection", cfg.MongoCollection))
+
+		mongoService, err = services.NewMongoDBService(
+			cfg.MongoURI,
+			cfg.MongoDB,
+			cfg.MongoCollection,
+		)
+		if err != nil {
+			log.Warn("Failed to initialize MongoDB service, database persistence will be disabled", zap.Error(err))
+		} else {
+			log.Info("MongoDB service initialized successfully")
+
+			// Test connection
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			tickets, err := mongoService.GetAllTickets(ctx)
+			if err != nil {
+				log.Warn("Failed to retrieve tickets from MongoDB", zap.Error(err))
+			} else {
+				log.Info("Successfully connected to MongoDB", zap.Int("ticket_count", len(tickets)))
+			}
+		}
+	} else {
+		log.Warn("MongoDB configuration not provided, database persistence will be disabled")
+	}
+
 	// Initialize Jira service
 	jiraService, err := services.NewJiraService(
 		cfg.JiraURL,
@@ -109,18 +141,48 @@ func main() {
 		cfg.JiraAPIToken,
 		cfg.JiraProjectKey,
 		cfg.SupportTeamMembers,
+		cfg.DefaultPriority,
+		mongoService,
 	)
 	if err != nil {
 		log.Fatal("Failed to initialize Jira service", zap.Error(err))
 	}
 
+	// Initialize S3 service if configured
+	var s3Service *services.S3Service
+	if cfg.AWSS3AccessKey != "" && cfg.AWSS3SecretKey != "" {
+		s3Service, err = services.NewS3Service(
+			cfg.AWSS3AccessKey,
+			cfg.AWSS3SecretKey,
+			cfg.AWSS3Region,
+			cfg.AWSS3BucketName,
+			cfg.AWSS3BaseURL,
+		)
+		if err != nil {
+			log.Warn("Failed to initialize S3 service, file uploads will be disabled", zap.Error(err))
+		} else {
+			log.Info("S3 service initialized successfully",
+				zap.String("region", cfg.AWSS3Region),
+				zap.String("bucket", cfg.AWSS3BucketName),
+			)
+		}
+	} else {
+		log.Warn("S3 configuration not provided, file uploads will be disabled")
+	}
+
 	// Initialize handlers
 	ticketHandler := handlers.NewTicketHandler(jiraService, log, validate)
+	reportHandler := handlers.NewReportHandler(jiraService, s3Service, log, validate)
 
 	// Routes
 	r.GET("/health", handlers.HealthCheckGin)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.POST("/create-ticket", ticketHandler.CreateTicketGin)
+	r.POST("/report-issue", reportHandler.ReportIssue)
+
+	// MongoDB routes
+	r.GET("/tickets", ticketHandler.GetAllTicketsGin)
+	r.GET("/tickets/:id", ticketHandler.GetTicketByIDGin)
 
 	// Prometheus metrics endpoint
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
@@ -157,6 +219,15 @@ func main() {
 
 	if err := jiraService.Cleanup(); err != nil {
 		log.Error("Failed to cleanup Jira service", zap.Error(err))
+	}
+
+	// Cleanup MongoDB connection if initialized
+	if mongoService != nil {
+		if err := mongoService.Disconnect(context.Background()); err != nil {
+			log.Error("Failed to disconnect from MongoDB", zap.Error(err))
+		} else {
+			log.Info("MongoDB connection closed")
+		}
 	}
 
 	log.Info("Server stopped gracefully")
