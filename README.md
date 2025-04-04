@@ -17,6 +17,7 @@ A Go-based API service for reporting issues that creates Jira tickets with scree
 - Health check endpoint
 - Request validation
 - Smart truncation for Jira ticket descriptions with fallback to comments
+- Docker support for containerized deployment
 
 ## Prerequisites
 
@@ -25,6 +26,7 @@ A Go-based API service for reporting issues that creates Jira tickets with scree
 - MongoDB (local or remote)
 - AWS S3 bucket (for file uploads)
 - Git
+- Docker and Docker Compose (for containerized deployment)
 
 ## Installation
 
@@ -99,6 +101,42 @@ go run cmd/api/main.go
 ```bash
 ENV=production go run cmd/api/main.go
 ```
+
+### Docker Deployment
+
+The application can be deployed using Docker and Docker Compose:
+
+1. Build and start all services:
+```bash
+docker-compose up -d
+```
+
+This will start:
+- The Ronnin API on port 8080
+- MongoDB on port 27017
+- MinIO (S3-compatible storage) on ports 9000 (API) and 9001 (Console)
+
+2. View logs:
+```bash
+docker-compose logs -f api
+```
+
+3. Stop all services:
+```bash
+docker-compose down
+```
+
+4. To rebuild the API after making changes:
+```bash
+docker-compose build api
+docker-compose up -d api
+```
+
+#### Accessing MinIO Console
+MinIO provides an S3-compatible interface for development:
+- Console URL: http://localhost:9001
+- Username: minio
+- Password: minio123
 
 ## API Documentation
 

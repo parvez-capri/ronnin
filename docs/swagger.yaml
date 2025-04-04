@@ -1,6 +1,6 @@
 basePath: /
 definitions:
-  github_com_parvez-capri_ronnin_internal_models.ErrorResponse:
+  models.ErrorResponse:
     properties:
       details:
         example: Field 'url' is required
@@ -9,7 +9,7 @@ definitions:
         example: Invalid request body
         type: string
     type: object
-  github_com_parvez-capri_ronnin_internal_models.HealthResponse:
+  models.HealthResponse:
     properties:
       services:
         additionalProperties:
@@ -22,7 +22,7 @@ definitions:
         example: 1647123456
         type: integer
     type: object
-  github_com_parvez-capri_ronnin_internal_models.TicketRequest:
+  models.TicketRequest:
     properties:
       imageS3URL:
         example: https://bucket.s3.amazonaws.com/screenshot.png
@@ -41,13 +41,12 @@ definitions:
         example: https://example.com/api/endpoint
         type: string
     required:
-    - imageS3URL
     - payload
     - requestHeaders
     - response
     - url
     type: object
-  github_com_parvez-capri_ronnin_internal_models.TicketResponse:
+  models.TicketResponse:
     properties:
       assignedTo:
         example: john.doe@company.com
@@ -62,13 +61,53 @@ definitions:
         example: PROJECT-123
         type: string
     type: object
+  services.FlattenedTicket:
+    properties:
+      assignedTo:
+        type: string
+      createdAt:
+        type: string
+      description:
+        type: string
+      failedNetworkCallsJSON:
+        description: Store JSON strings for complex data
+        type: string
+      id:
+        type: string
+      imageURL:
+        type: string
+      issue:
+        description: Issue details
+        type: string
+      jiraLink:
+        type: string
+      leadID:
+        type: string
+      pageURL:
+        type: string
+      payloadJSON:
+        type: string
+      product:
+        type: string
+      requestHeadersJSON:
+        type: string
+      responseJSON:
+        type: string
+      status:
+        type: string
+      ticketID:
+        type: string
+      userEmail:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
-    email: support@swagger.io
-    name: API Support
-    url: http://www.swagger.io/support
-  description: API Server for Ronnin application
+    email: support@yourorg.com
+    name: Your Organization Name
+    url: http://www.yourorg.com/support
+  description: API Server for issue reporting with Jira integration, MongoDB persistence,
+    and S3 file uploads
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -80,29 +119,32 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a new JIRA ticket with the provided information
+      description: Creates a new JIRA ticket with the provided information and persists
+        ticket data to MongoDB
       parameters:
-      - description: Ticket creation request
+      - description: Ticket creation request with URL, payload, response, and request
+          headers
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_parvez-capri_ronnin_internal_models.TicketRequest'
+          $ref: '#/definitions/models.TicketRequest'
       produces:
       - application/json
       responses:
         "201":
-          description: Created
+          description: Ticket created successfully with ticket ID, status, assigned
+            user, and Jira link
           schema:
-            $ref: '#/definitions/github_com_parvez-capri_ronnin_internal_models.TicketResponse'
+            $ref: '#/definitions/models.TicketResponse'
         "400":
           description: Invalid request body or validation failed
           schema:
-            $ref: '#/definitions/github_com_parvez-capri_ronnin_internal_models.ErrorResponse'
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
-          description: Internal server error
+          description: Internal server error or failed to create ticket
           schema:
-            $ref: '#/definitions/github_com_parvez-capri_ronnin_internal_models.ErrorResponse'
+            $ref: '#/definitions/models.ErrorResponse'
       summary: Create a new ticket
       tags:
       - tickets
@@ -110,26 +152,148 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get the status of server and its dependencies
+      description: Get the status of the server and all its dependencies including
+        Jira, MongoDB, and S3 connections
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: System healthy with status of all services
+          schema:
+            $ref: '#/definitions/models.HealthResponse'
+        "503":
+          description: System unhealthy with details about failed services
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Health check endpoint
+      tags:
+      - health
+  /report-issue:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Creates a JIRA ticket for a reported issue with screenshots (uploaded
+        to S3 with 7-day presigned URL) and network calls data. All data is persisted
+        to MongoDB.
+      parameters:
+      - description: Issue title
+        in: formData
+        name: issue
+        required: true
+        type: string
+      - description: Issue description
+        in: formData
+        name: description
+        required: true
+        type: string
+      - description: User email
+        in: formData
+        name: userEmail
+        type: string
+      - description: Lead ID
+        in: formData
+        name: leadId
+        type: string
+      - description: Product name
+        in: formData
+        name: product
+        type: string
+      - description: Page URL where the issue occurred
+        in: formData
+        name: pageUrl
+        type: string
+      - description: Failed network calls JSON string
+        in: formData
+        name: failedNetworkCalls
+        type: string
+      - description: Screenshot image (will be uploaded to S3 with 7-day presigned
+          URL)
+        in: formData
+        name: image0
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Ticket created successfully with ticket ID, status, assigned
+            user, and Jira link
+          schema:
+            $ref: '#/definitions/models.TicketResponse'
+        "400":
+          description: Invalid request body or validation error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Failed to create ticket or internal server error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Report an issue with screenshot upload
+      tags:
+      - reports
+  /tickets:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all tickets from the MongoDB database with full ticket
+        data
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_parvez-capri_ronnin_internal_models.HealthResponse'
-        "503":
-          description: Service Unavailable
+            items:
+              $ref: '#/definitions/services.FlattenedTicket'
+            type: array
+        "500":
+          description: Database unavailable or error retrieving tickets
           schema:
-            $ref: '#/definitions/github_com_parvez-capri_ronnin_internal_models.ErrorResponse'
-      summary: Health check endpoint
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get All Tickets
       tags:
-      - health
+      - tickets
+  /tickets/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a single ticket by its Jira ID from MongoDB with complete
+        ticket details
+      parameters:
+      - description: Jira Ticket ID (e.g. PROJ-123)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.FlattenedTicket'
+        "404":
+          description: Ticket not found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Database unavailable or error retrieving ticket
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get Ticket by ID
+      tags:
+      - tickets
 securityDefinitions:
   ApiKeyAuth:
     in: header
     name: Authorization
     type: apiKey
 swagger: "2.0"
+tags:
+- description: Ticket viewing endpoints - for accessing stored reports
+  name: tickets
+- description: Issue reporting with file uploads
+  name: reports
+- description: Health check and monitoring endpoints
+  name: health
 x-extension-openapi:
   example: value on a json format

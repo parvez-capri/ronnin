@@ -11,9 +11,9 @@ const docTemplate = `{
         "title": "{{.Title}}",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
-            "name": "API Support",
-            "url": "http://www.swagger.io/support",
-            "email": "support@swagger.io"
+            "name": "Your Organization Name",
+            "url": "http://www.yourorg.com/support",
+            "email": "support@yourorg.com"
         },
         "license": {
             "name": "Apache 2.0",
@@ -26,7 +26,7 @@ const docTemplate = `{
     "paths": {
         "/create-ticket": {
             "post": {
-                "description": "Creates a new JIRA ticket with the provided information",
+                "description": "Creates a new JIRA ticket with the provided information and persists ticket data to MongoDB",
                 "consumes": [
                     "application/json"
                 ],
@@ -39,32 +39,32 @@ const docTemplate = `{
                 "summary": "Create a new ticket",
                 "parameters": [
                     {
-                        "description": "Ticket creation request",
+                        "description": "Ticket creation request with URL, payload, response, and request headers",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_parvez-capri_ronnin_internal_models.TicketRequest"
+                            "$ref": "#/definitions/models.TicketRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Ticket created successfully with ticket ID, status, assigned user, and Jira link",
                         "schema": {
-                            "$ref": "#/definitions/github_com_parvez-capri_ronnin_internal_models.TicketResponse"
+                            "$ref": "#/definitions/models.TicketResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request body or validation failed",
                         "schema": {
-                            "$ref": "#/definitions/github_com_parvez-capri_ronnin_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal server error or failed to create ticket",
                         "schema": {
-                            "$ref": "#/definitions/github_com_parvez-capri_ronnin_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -72,7 +72,7 @@ const docTemplate = `{
         },
         "/health": {
             "get": {
-                "description": "Get the status of server and its dependencies",
+                "description": "Get the status of the server and all its dependencies including Jira, MongoDB, and S3 connections",
                 "consumes": [
                     "application/json"
                 ],
@@ -85,15 +85,178 @@ const docTemplate = `{
                 "summary": "Health check endpoint",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "System healthy with status of all services",
                         "schema": {
-                            "$ref": "#/definitions/github_com_parvez-capri_ronnin_internal_models.HealthResponse"
+                            "$ref": "#/definitions/models.HealthResponse"
                         }
                     },
                     "503": {
-                        "description": "Service Unavailable",
+                        "description": "System unhealthy with details about failed services",
                         "schema": {
-                            "$ref": "#/definitions/github_com_parvez-capri_ronnin_internal_models.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/report-issue": {
+            "post": {
+                "description": "Creates a JIRA ticket for a reported issue with screenshots (uploaded to S3 with 7-day presigned URL) and network calls data. All data is persisted to MongoDB.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Report an issue with screenshot upload",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Issue title",
+                        "name": "issue",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Issue description",
+                        "name": "description",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User email",
+                        "name": "userEmail",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Lead ID",
+                        "name": "leadId",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product name",
+                        "name": "product",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Page URL where the issue occurred",
+                        "name": "pageUrl",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Failed network calls JSON string",
+                        "name": "failedNetworkCalls",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Screenshot image (will be uploaded to S3 with 7-day presigned URL)",
+                        "name": "image0",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Ticket created successfully with ticket ID, status, assigned user, and Jira link",
+                        "schema": {
+                            "$ref": "#/definitions/models.TicketResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create ticket or internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets": {
+            "get": {
+                "description": "Retrieves all tickets from the MongoDB database with full ticket data",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Get All Tickets",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/services.FlattenedTicket"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Database unavailable or error retrieving tickets",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tickets/{id}": {
+            "get": {
+                "description": "Retrieves a single ticket by its Jira ID from MongoDB with complete ticket details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Get Ticket by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Jira Ticket ID (e.g. PROJ-123)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.FlattenedTicket"
+                        }
+                    },
+                    "404": {
+                        "description": "Ticket not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Database unavailable or error retrieving ticket",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -101,7 +264,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "github_com_parvez-capri_ronnin_internal_models.ErrorResponse": {
+        "models.ErrorResponse": {
             "type": "object",
             "properties": {
                 "details": {
@@ -114,7 +277,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_parvez-capri_ronnin_internal_models.HealthResponse": {
+        "models.HealthResponse": {
             "type": "object",
             "properties": {
                 "services": {
@@ -133,10 +296,9 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_parvez-capri_ronnin_internal_models.TicketRequest": {
+        "models.TicketRequest": {
             "type": "object",
             "required": [
-                "imageS3URL",
                 "payload",
                 "requestHeaders",
                 "response",
@@ -167,7 +329,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_parvez-capri_ronnin_internal_models.TicketResponse": {
+        "models.TicketResponse": {
             "type": "object",
             "properties": {
                 "assignedTo": {
@@ -187,6 +349,64 @@ const docTemplate = `{
                     "example": "PROJECT-123"
                 }
             }
+        },
+        "services.FlattenedTicket": {
+            "type": "object",
+            "properties": {
+                "assignedTo": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "failedNetworkCallsJSON": {
+                    "description": "Store JSON strings for complex data",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "imageURL": {
+                    "type": "string"
+                },
+                "issue": {
+                    "description": "Issue details",
+                    "type": "string"
+                },
+                "jiraLink": {
+                    "type": "string"
+                },
+                "leadID": {
+                    "type": "string"
+                },
+                "pageURL": {
+                    "type": "string"
+                },
+                "payloadJSON": {
+                    "type": "string"
+                },
+                "product": {
+                    "type": "string"
+                },
+                "requestHeadersJSON": {
+                    "type": "string"
+                },
+                "responseJSON": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "ticketID": {
+                    "type": "string"
+                },
+                "userEmail": {
+                    "type": "string"
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -196,6 +416,20 @@ const docTemplate = `{
             "in": "header"
         }
     },
+    "tags": [
+        {
+            "description": "Ticket viewing endpoints - for accessing stored reports",
+            "name": "tickets"
+        },
+        {
+            "description": "Issue reporting with file uploads",
+            "name": "reports"
+        },
+        {
+            "description": "Health check and monitoring endpoints",
+            "name": "health"
+        }
+    ],
     "x-extension-openapi": {
         "example": "value on a json format"
     }
@@ -208,7 +442,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Ronnin API",
-	Description:      "API Server for Ronnin application",
+	Description:      "API Server for issue reporting with Jira integration, MongoDB persistence, and S3 file uploads",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -1,0 +1,30 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies
+vendor/
+
+# Logs
+*.log
+
+# Build artifacts
+/main
+/ronnin
+/tmp
+
+# Docker related
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# IDE specific files
+.idea/
+.vscode/
+
+# Air for live reload
+tmp/
+
+# Environment (will be copied explicitly in Dockerfile)
+# .env
+# .env.example 

@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ronnin-api
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - ENV=development
+      - LOG_LEVEL=info
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
+      - JIRA_URL=${JIRA_URL}
+      - JIRA_USERNAME=${JIRA_USERNAME}
+      - JIRA_API_TOKEN=${JIRA_API_TOKEN}
+      - JIRA_PROJECT_KEY=${JIRA_PROJECT_KEY}
+      - SUPPORT_TEAM_MEMBERS=${SUPPORT_TEAM_MEMBERS}
+      - DEFAULT_PRIORITY=${DEFAULT_PRIORITY}
+      - AWS_S3_ACCESS_KEY=minio
+      - AWS_S3_SECRET_KEY=minio123
+      - AWS_S3_REGION=us-east-1
+      - AWS_S3_BUCKET_NAME=ronnin
+      - AWS_S3_BASE_URL=http://minio:9000/ronnin
+      - MONGO_URI=mongodb://mongo:27017
+      - MONGO_DB=ronnin
+      - MONGO_COLLECTION=tickets
+    depends_on:
+      - mongo
+      - minio
+    volumes:
+      - ./app.log:/root/app.log
+    restart: unless-stopped
+    networks:
+      - ronnin-network
+
+  mongo:
+    image: mongo:latest
+    container_name: ronnin-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+    networks:
+      - ronnin-network
+
+  minio:
+    image: minio/minio
+    container_name: ronnin-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=minio123
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ronnin-network
+
+  # This service creates the required S3 bucket on startup
+  createbuckets:
+    image: minio/mc
+    container_name: ronnin-createbuckets
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add myminio http://minio:9000 minio minio123;
+      /usr/bin/mc mb myminio/ronnin --ignore-existing;
+      /usr/bin/mc policy set public myminio/ronnin;
+      exit 0;
+      "
+    networks:
+      - ronnin-network
+
+volumes:
+  mongo-data:
+  minio-data:
+
+networks:
+  ronnin-network:
+    driver: bridge 
